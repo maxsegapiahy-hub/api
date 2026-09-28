@@ -331,7 +331,7 @@ function QrCode({ size = 130 }: { size?: number }) {
   return <View style={[styles.qrCode, { width: size, height: size, padding: size * 0.06 }]}>{qrCells.map((filled, index) => <View key={index} style={{ width: `${100 / 9}%`, height: `${100 / 9}%`, backgroundColor: filled ? C.bg : "#FFF" }} />)}</View>;
 }
 
-function AffiliateView({ onPix, isAuthenticated, affiliate, loading, registering, onRegister, error }: {
+function AffiliateView({ onPix, isAuthenticated, affiliate, loading, registering, onRegister, error, referrals, commissions, historyLoading }: {
   onPix: () => void;
   isAuthenticated: boolean;
   affiliate: { referralCode: string; status: string; pillars: string[] } | null | undefined;
@@ -339,6 +339,9 @@ function AffiliateView({ onPix, isAuthenticated, affiliate, loading, registering
   registering: boolean;
   onRegister: (pillars: ("maxseg" | "max_saude" | "max_beneficios")[]) => void;
   error: string;
+  referrals: { id: number; pillar: string; status: string; createdAt: string | Date }[];
+  commissions: { id: number; pillar: string; amountCents: number; status: string; sourceReference: string; createdAt: string | Date }[];
+  historyLoading: boolean;
 }) {
   const [selected, setSelected] = useState<("maxseg" | "max_saude" | "max_beneficios")[]>(["maxseg", "max_saude", "max_beneficios"]);
   const options = [
@@ -365,7 +368,15 @@ function AffiliateView({ onPix, isAuthenticated, affiliate, loading, registering
               return <View key={option.id} style={styles.activityRow}><IconBox icon={option.icon} color={option.color} size={36} /><View style={{ flex: 1 }}><Text style={styles.quickTitle}>{option.title}</Text><Text style={styles.quickBody}>{option.body}</Text></View><Pill color={active ? C.success : C.muted}>{active ? "ATIVO" : "NÃO VINCULADO"}</Pill></View>;
             })}
           </Card>
-          <View style={styles.infoStrip}><MaterialIcons name="info-outline" size={17} color={C.gold} /><Text style={styles.infoText}>Este é o cadastro unificado. Saldo, indicações e comissões por pilar ainda serão integrados.</Text></View>
+          <Card>
+            <Text style={styles.sectionTitle}>INDICAÇÕES REGISTRADAS</Text>
+            {historyLoading ? <Text style={styles.bodyText}>Carregando histórico...</Text> : referrals.length === 0 ? <Text style={styles.bodyText}>Nenhuma indicação registrada até o momento.</Text> : referrals.map((item) => <View key={item.id} style={styles.activityRow}><IconBox icon="person-add" color={C.gold} size={36} /><View style={{ flex: 1 }}><Text style={styles.quickTitle}>{options.find((option) => option.id === item.pillar)?.title ?? item.pillar}</Text><Text style={styles.quickBody}>{new Date(item.createdAt).toLocaleDateString("pt-BR")}</Text></View><Pill color={item.status === "qualified" ? C.success : item.status === "rejected" ? C.red : C.muted}>{item.status === "qualified" ? "QUALIFICADA" : item.status === "rejected" ? "REJEITADA" : "REGISTRADA"}</Pill></View>)}
+          </Card>
+          <Card>
+            <Text style={styles.sectionTitle}>HISTÓRICO DE COMISSÕES</Text>
+            {historyLoading ? <Text style={styles.bodyText}>Carregando comissões...</Text> : commissions.length === 0 ? <Text style={styles.bodyText}>Nenhuma comissão lançada. Os valores aparecerão quando houver lançamentos confirmados.</Text> : commissions.map((item) => <View key={item.id} style={styles.activityRow}><IconBox icon="account-balance-wallet" color={C.gold} size={36} /><View style={{ flex: 1 }}><Text style={styles.quickTitle}>{options.find((option) => option.id === item.pillar)?.title ?? item.pillar}</Text><Text style={styles.quickBody}>{item.sourceReference} · {new Date(item.createdAt).toLocaleDateString("pt-BR")}</Text><Text style={styles.quickBody}>{(item.amountCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</Text></View><Pill color={item.status === "paid" ? C.success : item.status === "canceled" ? C.red : C.muted}>{item.status === "paid" ? "PAGA" : item.status === "approved" ? "APROVADA" : item.status === "canceled" ? "CANCELADA" : "PENDENTE"}</Pill></View>)}
+          </Card>
+          <View style={styles.infoStrip}><MaterialIcons name="info-outline" size={17} color={C.gold} /><Text style={styles.infoText}>O histórico mostra apenas lançamentos existentes. O cálculo automático de comissões e o saque PIX ainda não estão integrados.</Text></View>
         </>
       ) : (
         <Card>
@@ -446,6 +457,8 @@ export default function HomeScreen() {
   const cancelSosMutation = trpc.sos.cancel.useMutation();
   const profileSyncMutation = trpc.profile.sync.useMutation();
   const affiliateQuery = trpc.affiliates.me.useQuery(undefined, { enabled: isAuthenticated, retry: false });
+  const affiliateReferralsQuery = trpc.affiliates.referrals.useQuery(undefined, { enabled: isAuthenticated && !!affiliateQuery.data, retry: false });
+  const affiliateCommissionsQuery = trpc.affiliates.commissions.useQuery(undefined, { enabled: isAuthenticated && !!affiliateQuery.data, retry: false });
   const affiliateRegisterMutation = trpc.affiliates.register.useMutation();
   const [affiliateError, setAffiliateError] = useState("");
   const profileQuery = trpc.profile.get.useQuery(undefined, { enabled: isAuthenticated, retry: false });
@@ -666,7 +679,7 @@ export default function HomeScreen() {
     }
   };
 
-  const content = tab === "home" ? <HomeView onNavigate={setTab} onSos={openSos} onAi={() => setAiVisible(true)} /> : tab === "carteira" ? <WalletView onQr={() => setQrVisible(true)} /> : tab === "afiliado" ? <AffiliateView onPix={() => setPixVisible(true)} isAuthenticated={isAuthenticated} affiliate={affiliateQuery.data} loading={isAuthenticated && affiliateQuery.isLoading} registering={affiliateRegisterMutation.isPending} error={affiliateError} onRegister={(pillars) => { setAffiliateError(""); affiliateRegisterMutation.mutate({ pillars }, { onSuccess: () => { void affiliateQuery.refetch(); }, onError: (error) => setAffiliateError(error.message || "Não foi possível concluir o cadastro.") }); }} /> : tab === "clube" ? <ClubView onCoupon={setCoupon} /> : tab === "pins" ? <PinsView /> : <TelemedicineView onBack={() => setTab("home")} />;
+  const content = tab === "home" ? <HomeView onNavigate={setTab} onSos={openSos} onAi={() => setAiVisible(true)} /> : tab === "carteira" ? <WalletView onQr={() => setQrVisible(true)} /> : tab === "afiliado" ? <AffiliateView onPix={() => setPixVisible(true)} isAuthenticated={isAuthenticated} affiliate={affiliateQuery.data} loading={isAuthenticated && affiliateQuery.isLoading} registering={affiliateRegisterMutation.isPending} error={affiliateError} referrals={affiliateReferralsQuery.data ?? []} commissions={affiliateCommissionsQuery.data ?? []} historyLoading={affiliateReferralsQuery.isLoading || affiliateCommissionsQuery.isLoading} onRegister={(pillars) => { setAffiliateError(""); affiliateRegisterMutation.mutate({ pillars }, { onSuccess: () => { void affiliateQuery.refetch(); }, onError: (error) => setAffiliateError(error.message || "Não foi possível concluir o cadastro.") }); }} /> : tab === "clube" ? <ClubView onCoupon={setCoupon} /> : tab === "pins" ? <PinsView /> : <TelemedicineView onBack={() => setTab("home")} />;
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} containerClassName="bg-background" safeAreaClassName="bg-background">
