@@ -1,7 +1,7 @@
 import { and, desc, eq, ne } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
-import { affiliates, affiliatePillars, centralSettings, InsertUser, pushTokens, sosAlerts, userProfiles, users } from "../drizzle/schema";
+import { affiliates, affiliatePillars, affiliateReferrals, affiliateCommissions, centralSettings, InsertUser, pushTokens, sosAlerts, userProfiles, users } from "../drizzle/schema";
 import type { EmergencyContact } from "../shared/max-seg";
 import { CENTRAL_MAX_PROFILE } from "../shared/max-seg";
 import { ENV } from "./_core/env";
@@ -166,4 +166,36 @@ export async function registerAffiliate(userId: number, pillars: AffiliatePillar
     await db.insert(affiliatePillars).values({ affiliateId: affiliate.id, pillar }).onDuplicateKeyUpdate({ set: { pillar } });
   }
   return getAffiliateByUserId(userId);
+}
+
+
+export async function createAffiliateReferral(referredUserId: number, referralCode: string, pillar: AffiliatePillarKey) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db.select().from(affiliates).where(eq(affiliates.referralCode, referralCode.trim().toUpperCase())).limit(1);
+  const affiliate = rows[0];
+  if (!affiliate || affiliate.status !== "active") throw new Error("Código de indicação inválido ou inativo");
+  if (affiliate.userId === referredUserId) throw new Error("Não é permitido indicar a própria conta");
+  const enabled = await db.select().from(affiliatePillars).where(and(eq(affiliatePillars.affiliateId, affiliate.id), eq(affiliatePillars.pillar, pillar))).limit(1);
+  if (!enabled[0]) throw new Error("Este afiliado não está vinculado ao pilar selecionado");
+  await db.insert(affiliateReferrals).values({ affiliateId: affiliate.id, referredUserId, pillar, status: "registered" });
+  return { status: "registered" as const, pillar };
+}
+
+export async function listAffiliateReferrals(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const affiliate = await getAffiliateByUserId(userId);
+  if (!affiliate) return [];
+  return db.select({ id: affiliateReferrals.id, pillar: affiliateReferrals.pillar, status: affiliateReferrals.status, createdAt: affiliateReferrals.createdAt })
+    .from(affiliateReferrals).where(eq(affiliateReferrals.affiliateId, affiliate.id)).orderBy(desc(affiliateReferrals.createdAt)).limit(100);
+}
+
+export async function listAffiliateCommissions(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const affiliate = await getAffiliateByUserId(userId);
+  if (!affiliate) return [];
+  return db.select({ id: affiliateCommissions.id, pillar: affiliateCommissions.pillar, amountCents: affiliateCommissions.amountCents, status: affiliateCommissions.status, sourceReference: affiliateCommissions.sourceReference, createdAt: affiliateCommissions.createdAt })
+    .from(affiliateCommissions).where(eq(affiliateCommissions.affiliateId, affiliate.id)).orderBy(desc(affiliateCommissions.createdAt)).limit(100);
 }
