@@ -5,7 +5,7 @@ import { CENTRAL_MAX_PROFILE, getSosPriority, type EmergencyType } from "../shar
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { cancelSosAlertForUser, createSosAlert, getActivePushTokens, getCentralProfile, getUserProfile, listActiveSosAlerts, updateSosAlertStatus, upsertCentralProfile, upsertPushToken, upsertUserProfile } from "./db";
+import { cancelSosAlertForUser, createSosAlert, getActivePushTokens, getCentralProfile, getUserProfile, listActiveSosAlerts, updateSosAlertStatus, upsertCentralProfile, upsertPushToken, upsertUserProfile, getAffiliateByUserId, registerAffiliate, type AffiliatePillarKey } from "./db";
 import { sendExpoPushMessages } from "./push";
 
 const emergencyTypeSchema = z.enum(["security", "medical", "fire", "accident", "other"]);
@@ -50,6 +50,15 @@ export const appRouter = router({
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => { const cookieOptions = getSessionCookieOptions(ctx.req); ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 }); return { success: true } as const; }),
+  }),
+  affiliates: router({
+    me: protectedProcedure.query(async ({ ctx }) => getAffiliateByUserId(ctx.user.id)),
+    register: protectedProcedure.input(z.object({
+      pillars: z.array(z.enum(["maxseg", "max_saude", "max_beneficios"])).min(1).max(3),
+    })).mutation(async ({ ctx, input }) => {
+      const affiliate = await registerAffiliate(ctx.user.id, input.pillars as AffiliatePillarKey[]);
+      return { status: "registered" as const, affiliate };
+    }),
   }),
   push: router({
     register: protectedProcedure.input(z.object({ token: z.string().min(20).max(512), platform: z.enum(["ios", "android"]) })).mutation(async ({ ctx, input }) => { await upsertPushToken(ctx.user.id, input.token, input.platform); return { status: "registered" as const }; }),
