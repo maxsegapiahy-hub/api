@@ -331,19 +331,56 @@ function QrCode({ size = 130 }: { size?: number }) {
   return <View style={[styles.qrCode, { width: size, height: size, padding: size * 0.06 }]}>{qrCells.map((filled, index) => <View key={index} style={{ width: `${100 / 9}%`, height: `${100 / 9}%`, backgroundColor: filled ? C.bg : "#FFF" }} />)}</View>;
 }
 
-function AffiliateView({ onPix }: { onPix: () => void }) {
-  const [expanded, setExpanded] = useState("n1");
-  const levels = [
-    { id: "n1", title: "1º Nível · Vendas diretas (15%)", people: "15 clientes diretos ativos", value: "R$ 449,70/mês", color: C.bordoLight, members: ["Drogaria Central Apiaí · +R$ 29,98", "Posto de Serviços Apiaí · +R$ 29,98", "Roberto M. Santos · +R$ 17,98"] },
-    { id: "n2", title: "2º Nível · Indicações (7%)", people: "9 clientes na rede", value: "R$ 219,90/mês", color: C.blue, members: ["Ana P. Rodrigues · +R$ 24,90", "Mercado Regional · +R$ 19,98"] },
-    { id: "n3", title: "3º Nível · Expansão (3%)", people: "4 clientes na rede", value: "R$ 99,90/mês", color: C.gold, members: ["Equipe Max Apiaí · +R$ 19,98"] },
+function AffiliateView({ onPix, isAuthenticated, affiliate, loading, registering, onRegister, error }: {
+  onPix: () => void;
+  isAuthenticated: boolean;
+  affiliate: { referralCode: string; status: string; pillars: string[] } | null | undefined;
+  loading: boolean;
+  registering: boolean;
+  onRegister: (pillars: ("maxseg" | "max_saude" | "max_beneficios")[]) => void;
+  error: string;
+}) {
+  const [selected, setSelected] = useState<("maxseg" | "max_saude" | "max_beneficios")[]>(["maxseg", "max_saude", "max_beneficios"]);
+  const options = [
+    { id: "maxseg" as const, title: "MaxSeg", body: "Indicações de serviços de segurança", icon: "security" as const, color: C.bordoLight },
+    { id: "max_saude" as const, title: "Max Saúde", body: "Indicações de serviços de saúde", icon: "medical-services" as const, color: C.blue },
+    { id: "max_beneficios" as const, title: "Max Benefícios", body: "Indicações do clube e parceiros", icon: "card-giftcard" as const, color: C.gold },
   ];
+  const toggle = (id: typeof selected[number]) => setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      <Card style={styles.balanceCard}><View style={styles.rowBetween}><View><Text style={styles.eyebrow}>SALDO DE COMISSÕES RECORRENTES</Text><Text style={styles.balance}>R$ 1.169,70</Text></View><Pressable onPress={onPix} style={({ pressed }) => [styles.goldButton, pressed && styles.pressed]}><MaterialIcons name="account-balance-wallet" size={15} color={C.bg} /><Text style={styles.darkButtonText}>Saque PIX</Text></Pressable></View><View style={styles.statsRow}><View><Text style={styles.statLabel}>Ganhos de adesão · mês</Text><Text style={styles.statValueGreen}>R$ 700,00</Text></View><View><Text style={styles.statLabel}>Contratos ativos na rede</Text><Text style={styles.statValue}>28 pessoas</Text></View></View></Card>
-      <Card><View style={styles.rowBetween}><View style={styles.brandRow}><View style={styles.rankIcon}><MaterialIcons name="military-tech" size={17} color={C.white} /></View><View><Text style={styles.quickTitle}>Graduação atual: <Text style={{ color: C.gold }}>LÍDER PRATA</Text></Text><Text style={styles.quickBody}>Próxima meta: Supervisor Ouro</Text></View></View><Text style={styles.percent}>46%</Text></View><View style={styles.progressTrack}><View style={[styles.progressBar, { width: "46%" }]} /></View><Text style={styles.goalText}>ⓘ Faltam <Text style={styles.goalStrong}>32 contratos na rede</Text> + <Text style={styles.goalStrong}>1 Líder Prata</Text> para qualificar a <Text style={{ color: C.gold }}>Supervisor Ouro</Text>.</Text></Card>
-      <Card><View style={styles.rowBetween}><Text style={styles.sectionTitle}>REDE UNILEVEL · 3 NÍVEIS</Text><Text style={styles.tinyMuted}>Teto Max: 25%</Text></View>{levels.map((level) => { const open = expanded === level.id; return <View key={level.id} style={styles.levelBox}><Pressable onPress={() => setExpanded(open ? "" : level.id)} style={({ pressed }) => [styles.rowBetween, pressed && styles.pressed]}><View style={styles.brandRow}><View style={[styles.levelBadge, { backgroundColor: level.color }]}><Text style={styles.levelBadgeText}>{level.id.toUpperCase()}</Text></View><View><Text style={styles.levelTitle}>{level.title}</Text><Text style={styles.quickBody}>{level.people}</Text></View></View><View style={{ alignItems: "flex-end" }}><Text style={styles.levelValue}>{level.value}</Text><MaterialIcons name={open ? "expand-less" : "expand-more"} size={18} color={C.muted} /></View></Pressable>{open ? <View style={styles.memberList}>{level.members.map((member) => <Text key={member} style={styles.memberRow}>• {member}</Text>)}</View> : null}</View>; })}</Card>
-      <View style={styles.infoStrip}><MaterialIcons name="info-outline" size={17} color={C.gold} /><Text style={styles.infoText}>Seu painel de afiliado mostra comissões recorrentes de forma transparente. Saques ficam disponíveis após validação cadastral.</Text></View>
+      <View style={styles.centerBlock}><Text style={styles.pageTitle}>Rede de Afiliados</Text><Text style={styles.pageSubtitle}>Um único cadastro para atuar nos três pilares Max.</Text></View>
+      {loading ? <Card><Text style={styles.bodyText}>Carregando seu cadastro de afiliado...</Text></Card> : affiliate ? (
+        <>
+          <Card style={styles.balanceCard}>
+            <Text style={styles.eyebrow}>CADASTRO DE AFILIADO</Text>
+            <Text style={styles.cardTitle}>Seu cadastro está {affiliate.status === "active" ? "ativo" : affiliate.status === "pending" ? "pendente" : "suspenso"}</Text>
+            <Text style={styles.bodyText}>Código de indicação</Text>
+            <View style={styles.rowBetween}><Text selectable style={[styles.balance, { fontSize: 26 }]}>{affiliate.referralCode}</Text><Pressable onPress={() => { void (async () => { try { await Linking.setClipboard?.(affiliate.referralCode); } catch {} })(); }} style={styles.goldButton}><Text style={styles.darkButtonText}>Código</Text></Pressable></View>
+          </Card>
+          <Card>
+            <Text style={styles.sectionTitle}>PILARES VINCULADOS</Text>
+            {options.map((option) => {
+              const active = affiliate.pillars.includes(option.id);
+              return <View key={option.id} style={styles.activityRow}><IconBox icon={option.icon} color={option.color} size={36} /><View style={{ flex: 1 }}><Text style={styles.quickTitle}>{option.title}</Text><Text style={styles.quickBody}>{option.body}</Text></View><Pill color={active ? C.success : C.muted}>{active ? "ATIVO" : "NÃO VINCULADO"}</Pill></View>;
+            })}
+          </Card>
+          <View style={styles.infoStrip}><MaterialIcons name="info-outline" size={17} color={C.gold} /><Text style={styles.infoText}>Este é o cadastro unificado. Saldo, indicações e comissões por pilar ainda serão integrados.</Text></View>
+        </>
+      ) : (
+        <Card>
+          <View style={styles.rankIcon}><MaterialIcons name="groups" size={23} color={C.white} /></View>
+          <Text style={styles.cardTitle}>Faça seu cadastro de afiliado</Text>
+          <Text style={styles.bodyText}>Escolha um ou mais pilares. Você terá um único cadastro e poderá vincular os demais depois.</Text>
+          {options.map((option) => {
+            const active = selected.includes(option.id);
+            return <Pressable key={option.id} onPress={() => toggle(option.id)} style={[styles.levelBox, active && { borderColor: option.color }]}><View style={styles.rowBetween}><View style={styles.brandRow}><IconBox icon={option.icon} color={option.color} size={38} /><View><Text style={styles.quickTitle}>{option.title}</Text><Text style={styles.quickBody}>{option.body}</Text></View></View><MaterialIcons name={active ? "check-box" : "check-box-outline-blank"} size={23} color={active ? C.gold : C.muted} /></View></Pressable>;
+          })}
+          {!isAuthenticated ? <Text style={styles.infoText}>Entre na sua conta Max para concluir o cadastro com segurança.</Text> : null}
+          {error ? <Text style={{ color: C.red, marginTop: 10 }}>{error}</Text> : null}
+          <Pressable disabled={!isAuthenticated || selected.length === 0 || registering} onPress={() => onRegister(selected)} style={({ pressed }) => [styles.goldButton, { marginTop: 16, opacity: !isAuthenticated || selected.length === 0 || registering ? 0.5 : 1 }, pressed && styles.pressed]}><Text style={styles.darkButtonText}>{registering ? "Cadastrando..." : "Criar cadastro único"}</Text></Pressable>
+        </Card>
+      )}
     </ScrollView>
   );
 }
@@ -408,6 +445,9 @@ export default function HomeScreen() {
   const sosMutation = trpc.sos.send.useMutation();
   const cancelSosMutation = trpc.sos.cancel.useMutation();
   const profileSyncMutation = trpc.profile.sync.useMutation();
+  const affiliateQuery = trpc.affiliates.me.useQuery(undefined, { enabled: isAuthenticated, retry: false });
+  const affiliateRegisterMutation = trpc.affiliates.register.useMutation();
+  const [affiliateError, setAffiliateError] = useState("");
   const profileQuery = trpc.profile.get.useQuery(undefined, { enabled: isAuthenticated, retry: false });
   const { mutateAsync: registerPushAsync } = trpc.push.register.useMutation();
 
@@ -626,7 +666,7 @@ export default function HomeScreen() {
     }
   };
 
-  const content = tab === "home" ? <HomeView onNavigate={setTab} onSos={openSos} onAi={() => setAiVisible(true)} /> : tab === "carteira" ? <WalletView onQr={() => setQrVisible(true)} /> : tab === "afiliado" ? <AffiliateView onPix={() => setPixVisible(true)} /> : tab === "clube" ? <ClubView onCoupon={setCoupon} /> : tab === "pins" ? <PinsView /> : <TelemedicineView onBack={() => setTab("home")} />;
+  const content = tab === "home" ? <HomeView onNavigate={setTab} onSos={openSos} onAi={() => setAiVisible(true)} /> : tab === "carteira" ? <WalletView onQr={() => setQrVisible(true)} /> : tab === "afiliado" ? <AffiliateView onPix={() => setPixVisible(true)} isAuthenticated={isAuthenticated} affiliate={affiliateQuery.data} loading={isAuthenticated && affiliateQuery.isLoading} registering={affiliateRegisterMutation.isPending} error={affiliateError} onRegister={(pillars) => { setAffiliateError(""); affiliateRegisterMutation.mutate(pillars.length ? { pillars } : { pillars: ["maxseg"] }, { onSuccess: () => { void affiliateQuery.refetch(); }, onError: (error) => setAffiliateError(error.message || "Não foi possível concluir o cadastro.") }); }} /> : tab === "clube" ? <ClubView onCoupon={setCoupon} /> : tab === "pins" ? <PinsView /> : <TelemedicineView onBack={() => setTab("home")} />;
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} containerClassName="bg-background" safeAreaClassName="bg-background">
