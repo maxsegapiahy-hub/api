@@ -5,7 +5,7 @@ import { CENTRAL_MAX_PROFILE, getSosPriority, type EmergencyType } from "../shar
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { cancelSosAlertForUser, createSosAlert, getActivePushTokens, getCentralProfile, getUserProfile, listActiveSosAlerts, updateSosAlertStatus, upsertCentralProfile, upsertPushToken, upsertUserProfile, getAffiliateByUserId, registerAffiliate, type AffiliatePillarKey } from "./db";
+import { cancelSosAlertForUser, createSosAlert, getActivePushTokens, getCentralProfile, getUserProfile, listActiveSosAlerts, updateSosAlertStatus, upsertCentralProfile, upsertPushToken, upsertUserProfile, getAffiliateByUserId, registerAffiliate, createAffiliateReferral, listAffiliateReferrals, listAffiliateCommissions, type AffiliatePillarKey } from "./db";
 import { sendExpoPushMessages } from "./push";
 
 const emergencyTypeSchema = z.enum(["security", "medical", "fire", "accident", "other"]);
@@ -59,6 +59,12 @@ export const appRouter = router({
       const affiliate = await registerAffiliate(ctx.user.id, input.pillars as AffiliatePillarKey[]);
       return { status: "registered" as const, affiliate };
     }),
+    referral: protectedProcedure.input(z.object({
+      referralCode: z.string().trim().min(4).max(24),
+      pillar: z.enum(["maxseg", "max_saude", "max_beneficios"]),
+    })).mutation(async ({ ctx, input }) => createAffiliateReferral(ctx.user.id, input.referralCode, input.pillar)),
+    referrals: protectedProcedure.query(async ({ ctx }) => listAffiliateReferrals(ctx.user.id)),
+    commissions: protectedProcedure.query(async ({ ctx }) => listAffiliateCommissions(ctx.user.id)),
   }),
   push: router({
     register: protectedProcedure.input(z.object({ token: z.string().min(20).max(512), platform: z.enum(["ios", "android"]) })).mutation(async ({ ctx, input }) => { await upsertPushToken(ctx.user.id, input.token, input.platform); return { status: "registered" as const }; }),
