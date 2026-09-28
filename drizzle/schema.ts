@@ -83,7 +83,32 @@ export const affiliatePillars = mysqlTable("affiliate_pillars", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => ({ affiliatePillarUnique: unique("affiliate_pillars_affiliate_pillar").on(table.affiliateId, table.pillar) }));
 
+
+export const affiliateReferrals = mysqlTable("affiliate_referrals", {
+  id: int("id").autoincrement().primaryKey(),
+  affiliateId: int("affiliateId").notNull(),
+  referredUserId: int("referredUserId").notNull(),
+  pillar: mysqlEnum("pillar", ["maxseg", "max_saude", "max_beneficios"]).notNull(),
+  status: mysqlEnum("status", ["registered", "qualified", "rejected"]).default("registered").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({ referredUserPillarUnique: unique("affiliate_referrals_user_pillar").on(table.referredUserId, table.pillar) }));
+
+export const affiliateCommissions = mysqlTable("affiliate_commissions", {
+  id: int("id").autoincrement().primaryKey(),
+  affiliateId: int("affiliateId").notNull(),
+  referralId: int("referralId").notNull(),
+  pillar: mysqlEnum("pillar", ["maxseg", "max_saude", "max_beneficios"]).notNull(),
+  amountCents: int("amountCents").notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "paid", "canceled"]).default("pending").notNull(),
+  sourceReference: varchar("sourceReference", { length: 120 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({ sourceReferenceUnique: unique("affiliate_commissions_source_unique").on(table.sourceReference) }));
+
 export type User = typeof users.$inferSelect;
+export type AffiliateReferral = typeof affiliateReferrals.$inferSelect;
+export type AffiliateCommission = typeof affiliateCommissions.$inferSelect;
+
 export type Affiliate = typeof affiliates.$inferSelect;
 export type AffiliatePillar = typeof affiliatePillars.$inferSelect;
 
