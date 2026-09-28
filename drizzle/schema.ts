@@ -66,7 +66,27 @@ export const sosAlerts = mysqlTable("sos_alerts", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+
+export const affiliates = mysqlTable("affiliates", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  referralCode: varchar("referralCode", { length: 24 }).notNull().unique(),
+  status: mysqlEnum("status", ["pending", "active", "suspended"]).default("active").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const affiliatePillars = mysqlTable("affiliate_pillars", {
+  id: int("id").autoincrement().primaryKey(),
+  affiliateId: int("affiliateId").notNull(),
+  pillar: mysqlEnum("pillar", ["maxseg", "max_saude", "max_beneficios"]).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({ affiliatePillarUnique: unique("affiliate_pillars_affiliate_pillar").on(table.affiliateId, table.pillar) }));
+
 export type User = typeof users.$inferSelect;
+export type Affiliate = typeof affiliates.$inferSelect;
+export type AffiliatePillar = typeof affiliatePillars.$inferSelect;
+
 export type InsertUser = typeof users.$inferInsert;
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type PushToken = typeof pushTokens.$inferSelect;
