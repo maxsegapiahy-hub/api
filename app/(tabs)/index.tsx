@@ -356,7 +356,7 @@ function AffiliateView({ onPix, isAuthenticated, affiliate, loading, registering
             <Text style={styles.eyebrow}>CADASTRO DE AFILIADO</Text>
             <Text style={styles.cardTitle}>Seu cadastro está {affiliate.status === "active" ? "ativo" : affiliate.status === "pending" ? "pendente" : "suspenso"}</Text>
             <Text style={styles.bodyText}>Código de indicação</Text>
-            <View style={styles.rowBetween}><Text selectable style={[styles.balance, { fontSize: 26 }]}>{affiliate.referralCode}</Text><Pressable onPress={() => { void (async () => { try { await Linking.setClipboard?.(affiliate.referralCode); } catch {} })(); }} style={styles.goldButton}><Text style={styles.darkButtonText}>Código</Text></Pressable></View>
+            <View style={styles.rowBetween}><Text selectable style={[styles.balance, { fontSize: 26 }]}>{affiliate.referralCode}</Text><MaterialIcons name="content-copy" size={20} color={C.gold} /></View><Text style={styles.tinyMuted}>Toque e selecione o código para copiá-lo.</Text>
           </Card>
           <Card>
             <Text style={styles.sectionTitle}>PILARES VINCULADOS</Text>
@@ -666,7 +666,7 @@ export default function HomeScreen() {
     }
   };
 
-  const content = tab === "home" ? <HomeView onNavigate={setTab} onSos={openSos} onAi={() => setAiVisible(true)} /> : tab === "carteira" ? <WalletView onQr={() => setQrVisible(true)} /> : tab === "afiliado" ? <AffiliateView onPix={() => setPixVisible(true)} isAuthenticated={isAuthenticated} affiliate={affiliateQuery.data} loading={isAuthenticated && affiliateQuery.isLoading} registering={affiliateRegisterMutation.isPending} error={affiliateError} onRegister={(pillars) => { setAffiliateError(""); affiliateRegisterMutation.mutate(pillars.length ? { pillars } : { pillars: ["maxseg"] }, { onSuccess: () => { void affiliateQuery.refetch(); }, onError: (error) => setAffiliateError(error.message || "Não foi possível concluir o cadastro.") }); }} /> : tab === "clube" ? <ClubView onCoupon={setCoupon} /> : tab === "pins" ? <PinsView /> : <TelemedicineView onBack={() => setTab("home")} />;
+  const content = tab === "home" ? <HomeView onNavigate={setTab} onSos={openSos} onAi={() => setAiVisible(true)} /> : tab === "carteira" ? <WalletView onQr={() => setQrVisible(true)} /> : tab === "afiliado" ? <AffiliateView onPix={() => setPixVisible(true)} isAuthenticated={isAuthenticated} affiliate={affiliateQuery.data} loading={isAuthenticated && affiliateQuery.isLoading} registering={affiliateRegisterMutation.isPending} error={affiliateError} onRegister={(pillars) => { setAffiliateError(""); affiliateRegisterMutation.mutate({ pillars }, { onSuccess: () => { void affiliateQuery.refetch(); }, onError: (error) => setAffiliateError(error.message || "Não foi possível concluir o cadastro.") }); }} /> : tab === "clube" ? <ClubView onCoupon={setCoupon} /> : tab === "pins" ? <PinsView /> : <TelemedicineView onBack={() => setTab("home")} />;
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} containerClassName="bg-background" safeAreaClassName="bg-background">
