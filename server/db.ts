@@ -1,6 +1,7 @@
 import { and, desc, eq, ne } from "drizzle-orm";
+import { randomBytes } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
-import { centralSettings, InsertUser, pushTokens, sosAlerts, userProfiles, users } from "../drizzle/schema";
+import { affiliates, affiliatePillars, centralSettings, InsertUser, pushTokens, sosAlerts, userProfiles, users } from "../drizzle/schema";
 import type { EmergencyContact } from "../shared/max-seg";
 import { CENTRAL_MAX_PROFILE } from "../shared/max-seg";
 import { ENV } from "./_core/env";
@@ -131,4 +132,38 @@ export async function cancelSosAlertForUser(alertId: string, userId: number) {
   if (!db) throw new Error("Database not available");
   await db.update(sosAlerts).set({ status: "canceled" }).where(and(eq(sosAlerts.alertId, alertId), eq(sosAlerts.userId, userId)));
   return { alertId, status: "canceled" as const };
+}
+
+
+export type AffiliatePillarKey = "maxseg" | "max_saude" | "max_beneficios";
+
+export async function getAffiliateByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db.select().from(affiliates).where(eq(affiliates.userId, userId)).limit(1);
+  const affiliate = rows[0];
+  if (!affiliate) return null;
+  const pillars = await db.select({ pillar: affiliatePillars.pillar }).from(affiliatePillars).where(eq(affiliatePillars.affiliateId, affiliate.id));
+  return { ...affiliate, pillars: pillars.map((row) => row.pillar) };
+}
+
+export async function registerAffiliate(userId: number, pillars: AffiliatePillarKey[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const existing = await getAffiliateByUserId(userId);
+  if (existing) {
+    for (const pillar of pillars) {
+      await db.insert(affiliatePillars).values({ affiliateId: existing.id, pillar }).onDuplicateKeyUpdate({ set: { pillar } });
+    }
+    return getAffiliateByUserId(userId);
+  }
+  const referralCode = randomBytes(6).toString("hex").toUpperCase();
+  await db.insert(affiliates).values({ userId, referralCode, status: "active" });
+  const created = await db.select().from(affiliates).where(eq(affiliates.userId, userId)).limit(1);
+  const affiliate = created[0];
+  if (!affiliate) throw new Error("Affiliate registration failed");
+  for (const pillar of pillars) {
+    await db.insert(affiliatePillars).values({ affiliateId: affiliate.id, pillar }).onDuplicateKeyUpdate({ set: { pillar } });
+  }
+  return getAffiliateByUserId(userId);
 }
