@@ -178,6 +178,18 @@ export async function createAffiliateReferral(referredUserId: number, referralCo
   if (affiliate.userId === referredUserId) throw new Error("Não é permitido indicar a própria conta");
   const enabled = await db.select().from(affiliatePillars).where(and(eq(affiliatePillars.affiliateId, affiliate.id), eq(affiliatePillars.pillar, pillar))).limit(1);
   if (!enabled[0]) throw new Error("Este afiliado não está vinculado ao pilar selecionado");
+
+  // Idempotência: retries do link após uma falha de rede não devem duplicar indicação.
+  const existing = await db.select().from(affiliateReferrals)
+    .where(and(eq(affiliateReferrals.referredUserId, referredUserId), eq(affiliateReferrals.pillar, pillar)))
+    .limit(1);
+  if (existing[0]) {
+    if (existing[0].affiliateId !== affiliate.id) {
+      throw new Error("Já existe uma indicação registrada para sua conta neste pilar");
+    }
+    return { status: "registered" as const, pillar };
+  }
+
   await db.insert(affiliateReferrals).values({ affiliateId: affiliate.id, referredUserId, pillar, status: "registered" });
   return { status: "registered" as const, pillar };
 }
