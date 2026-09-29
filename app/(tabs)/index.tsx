@@ -57,14 +57,19 @@ const CENTRAL_STATUS_COPY = {
 const PROFILE_STORAGE_KEY = "max-seg.user-profile.v1";
 const AFFILIATE_INVITE_STORAGE_KEY = "max-seg.affiliate-invite.v1";
 type AffiliatePillar = "maxseg" | "max_saude" | "max_beneficios";
-type AffiliateInvite = { referralCode: string; pillar: AffiliatePillar };
+type AffiliateInvite = { referralCode: string; pillar: AffiliatePillar; capturedAt: number };
+const AFFILIATE_INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function isAffiliateInvite(value: unknown): value is AffiliateInvite {
   if (!value || typeof value !== "object") return false;
   const invite = value as Partial<AffiliateInvite>;
   return typeof invite.referralCode === "string"
     && /^[A-F0-9]{12}$/.test(invite.referralCode)
-    && ["maxseg", "max_saude", "max_beneficios"].includes(invite.pillar ?? "");
+    && ["maxseg", "max_saude", "max_beneficios"].includes(invite.pillar ?? "")
+    && typeof invite.capturedAt === "number"
+    && Number.isFinite(invite.capturedAt)
+    && invite.capturedAt <= Date.now()
+    && Date.now() - invite.capturedAt <= AFFILIATE_INVITE_TTL_MS;
 }
 
 function parseAffiliateInvite(url: string): AffiliateInvite | null {
@@ -72,7 +77,7 @@ function parseAffiliateInvite(url: string): AffiliateInvite | null {
     const parsed = new URL(url);
     const referralCode = (parsed.searchParams.get("ref") ?? "").toUpperCase();
     const pillar = parsed.searchParams.get("pillar");
-    const invite = { referralCode, pillar };
+    const invite = { referralCode, pillar, capturedAt: Date.now() };
     return isAffiliateInvite(invite) ? invite : null;
   } catch {
     return null;
@@ -564,7 +569,7 @@ export default function HomeScreen() {
     affiliateInviteInFlight.current = true;
     setTab("afiliado");
     setAffiliateReferralError("");
-    void affiliateReferralMutation.mutateAsync(pendingAffiliateInvite).then(async () => {
+    void affiliateReferralMutation.mutateAsync({ referralCode: pendingAffiliateInvite.referralCode, pillar: pendingAffiliateInvite.pillar }).then(async () => {
       await AsyncStorage.removeItem(AFFILIATE_INVITE_STORAGE_KEY);
       setPendingAffiliateInvite(null);
       setFailedAffiliateInvite(null);
