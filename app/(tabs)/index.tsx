@@ -390,7 +390,7 @@ function AffiliateView({ onPix, onShareInvite, initialReferralCode, initialRefer
       <Card>
         <Text style={styles.sectionTitle}>USAR CÓDIGO DE INDICAÇÃO</Text>
         <Text style={styles.bodyText}>Se alguém compartilhou um código com você, informe-o para registrar a indicação na sua conta.</Text>
-        <TextInput value={referralCode} onChangeText={(value) => setReferralCode(value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 24))} placeholder="Código de indicação" placeholderTextColor={C.muted} autoCapitalize="characters" autoCorrect={false} maxLength={24} style={styles.profileInput} />
+        <TextInput value={referralCode} onChangeText={(value) => setReferralCode(value.toUpperCase().replace(/[^A-F0-9]/g, "").slice(0, 12))} placeholder="Código de indicação (12 caracteres)" placeholderTextColor={C.muted} autoCapitalize="characters" autoCorrect={false} maxLength={12} style={styles.profileInput} />
         <Text style={[styles.quickBody, { marginTop: 10, marginBottom: 8 }]}>Pilar da indicação</Text>
         <View style={styles.filterRow}>
           {options.map((option) => <Pressable key={option.id} onPress={() => setReferralPillar(option.id)} style={[styles.filterChip, referralPillar === option.id && styles.filterChipActive]}><Text style={[styles.filterText, referralPillar === option.id && styles.filterTextActive]}>{option.title}</Text></Pressable>)}
