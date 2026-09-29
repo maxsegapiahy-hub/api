@@ -59,13 +59,21 @@ const AFFILIATE_INVITE_STORAGE_KEY = "max-seg.affiliate-invite.v1";
 type AffiliatePillar = "maxseg" | "max_saude" | "max_beneficios";
 type AffiliateInvite = { referralCode: string; pillar: AffiliatePillar };
 
+function isAffiliateInvite(value: unknown): value is AffiliateInvite {
+  if (!value || typeof value !== "object") return false;
+  const invite = value as Partial<AffiliateInvite>;
+  return typeof invite.referralCode === "string"
+    && /^[A-F0-9]{12}$/.test(invite.referralCode)
+    && ["maxseg", "max_saude", "max_beneficios"].includes(invite.pillar ?? "");
+}
+
 function parseAffiliateInvite(url: string): AffiliateInvite | null {
   try {
     const parsed = new URL(url);
-    const referralCode = (parsed.searchParams.get("ref") ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 24);
+    const referralCode = (parsed.searchParams.get("ref") ?? "").toUpperCase();
     const pillar = parsed.searchParams.get("pillar");
-    if (referralCode.length < 4 || !["maxseg", "max_saude", "max_beneficios"].includes(pillar ?? "")) return null;
-    return { referralCode, pillar: pillar as AffiliatePillar };
+    const invite = { referralCode, pillar };
+    return isAffiliateInvite(invite) ? invite : null;
   } catch {
     return null;
   }
@@ -525,7 +533,13 @@ export default function HomeScreen() {
         await captureInvite(initialUrl ?? (await Linking.getInitialURL()));
         const stored = await AsyncStorage.getItem(AFFILIATE_INVITE_STORAGE_KEY);
         if (active && stored) {
-          try { setPendingAffiliateInvite(JSON.parse(stored) as AffiliateInvite); } catch { await AsyncStorage.removeItem(AFFILIATE_INVITE_STORAGE_KEY); }
+          try {
+            const invite: unknown = JSON.parse(stored);
+            if (isAffiliateInvite(invite)) setPendingAffiliateInvite(invite);
+            else await AsyncStorage.removeItem(AFFILIATE_INVITE_STORAGE_KEY);
+          } catch {
+            await AsyncStorage.removeItem(AFFILIATE_INVITE_STORAGE_KEY);
+          }
         }
       } finally {
         if (active) setAffiliateInviteReady(true);
