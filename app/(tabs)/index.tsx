@@ -397,7 +397,7 @@ function AffiliateView({ onPix, onShareInvite, initialReferralCode, initialRefer
         </View>
         {!isAuthenticated ? <Text style={[styles.infoText, { marginTop: 10 }]}>Entre na sua conta para registrar uma indicação.</Text> : null}
         {referralError ? <Text style={{ color: C.red, marginTop: 10 }}>{referralError}</Text> : null}
-        <Pressable disabled={!isAuthenticated || referralCode.trim().length < 4 || referralSending} onPress={() => onReferral(referralCode.trim(), referralPillar)} style={({ pressed }) => [styles.goldButton, { marginTop: 14, opacity: !isAuthenticated || referralCode.trim().length < 4 || referralSending ? 0.5 : 1 }, pressed && styles.pressed]}>
+        <Pressable disabled={!isAuthenticated || !/^[A-F0-9]{12}$/.test(referralCode.trim()) || referralSending} onPress={() => onReferral(referralCode.trim(), referralPillar)} style={({ pressed }) => [styles.goldButton, { marginTop: 14, opacity: !isAuthenticated || !/^[A-F0-9]{12}$/.test(referralCode.trim()) || referralSending ? 0.5 : 1 }, pressed && styles.pressed]}>
           <Text style={styles.darkButtonText}>{referralSending ? "Registrando..." : "Registrar indicação"}</Text>
         </Pressable>
       </Card>
