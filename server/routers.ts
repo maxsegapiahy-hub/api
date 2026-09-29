@@ -60,9 +60,22 @@ export const appRouter = router({
       return { status: "registered" as const, affiliate };
     }),
     referral: protectedProcedure.input(z.object({
-      referralCode: z.string().trim().min(4).max(24),
+      referralCode: z.string().trim().toUpperCase().regex(/^[A-F0-9]{12}$/, "Código de indicação inválido"),
       pillar: z.enum(["maxseg", "max_saude", "max_beneficios"]),
-    })).mutation(async ({ ctx, input }) => createAffiliateReferral(ctx.user.id, input.referralCode, input.pillar)),
+    })).mutation(async ({ ctx, input }) => {
+      try {
+        return await createAffiliateReferral(ctx.user.id, input.referralCode, input.pillar);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Não foi possível registrar a indicação";
+        if (message === "Código de indicação inválido ou inativo" || message === "Este afiliado não está vinculado ao pilar selecionado" || message === "Não é permitido indicar a própria conta") {
+          throw new TRPCError({ code: "BAD_REQUEST", message });
+        }
+        if (message === "Já existe uma indicação registrada para sua conta neste pilar") {
+          throw new TRPCError({ code: "CONFLICT", message });
+        }
+        throw error;
+      }
+    }),
     referrals: protectedProcedure.query(async ({ ctx }) => listAffiliateReferrals(ctx.user.id)),
     commissions: protectedProcedure.query(async ({ ctx }) => listAffiliateCommissions(ctx.user.id)),
   }),
