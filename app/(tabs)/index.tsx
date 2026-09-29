@@ -347,9 +347,11 @@ function QrCode({ size = 130 }: { size?: number }) {
   return <View style={[styles.qrCode, { width: size, height: size, padding: size * 0.06 }]}>{qrCells.map((filled, index) => <View key={index} style={{ width: `${100 / 9}%`, height: `${100 / 9}%`, backgroundColor: filled ? C.bg : "#FFF" }} />)}</View>;
 }
 
-function AffiliateView({ onPix, onShareInvite, isAuthenticated, affiliate, loading, registering, onRegister, onReferral, referralSending, referralError, error, referrals, commissions, historyLoading }: {
+function AffiliateView({ onPix, onShareInvite, initialReferralCode, initialReferralPillar, isAuthenticated, affiliate, loading, registering, onRegister, onReferral, referralSending, referralError, error, referrals, commissions, historyLoading }: {
   onPix: () => void;
   onShareInvite: () => void;
+  initialReferralCode?: string;
+  initialReferralPillar?: AffiliatePillar;
   onReferral: (referralCode: string, pillar: "maxseg" | "max_saude" | "max_beneficios") => void;
   referralSending: boolean;
   referralError: string;
@@ -365,7 +367,9 @@ function AffiliateView({ onPix, onShareInvite, isAuthenticated, affiliate, loadi
 }) {
   const [selected, setSelected] = useState<("maxseg" | "max_saude" | "max_beneficios")[]>(["maxseg", "max_saude", "max_beneficios"]);
   const [referralCode, setReferralCode] = useState("");
-  const [referralPillar, setReferralPillar] = useState<"maxseg" | "max_saude" | "max_beneficios">("maxseg");
+  useEffect(() => { if (initialReferralCode) setReferralCode(initialReferralCode); }, [initialReferralCode]);
+  const [referralPillar, setReferralPillar] = useState<"maxseg" | "max_saude" | "max_beneficios">(initialReferralPillar ?? "maxseg");
+  useEffect(() => { if (initialReferralPillar) setReferralPillar(initialReferralPillar); }, [initialReferralPillar]);
   const options = [
     { id: "maxseg" as const, title: "MaxSeg", body: "Indicações de serviços de segurança", icon: "security" as const, color: C.bordoLight },
     { id: "max_saude" as const, title: "Max Saúde", body: "Indicações de serviços de saúde", icon: "medical-services" as const, color: C.blue },
@@ -498,6 +502,7 @@ export default function HomeScreen() {
   const affiliateRegisterMutation = trpc.affiliates.register.useMutation();
   const affiliateReferralMutation = trpc.affiliates.referral.useMutation();
   const [pendingAffiliateInvite, setPendingAffiliateInvite] = useState<AffiliateInvite | null>(null);
+  const [failedAffiliateInvite, setFailedAffiliateInvite] = useState<AffiliateInvite | null>(null);
   const [affiliateInviteReady, setAffiliateInviteReady] = useState(false);
   const affiliateInviteInFlight = useRef(false);
   const [affiliateError, setAffiliateError] = useState("");
@@ -542,11 +547,13 @@ export default function HomeScreen() {
     void affiliateReferralMutation.mutateAsync(pendingAffiliateInvite).then(async () => {
       await AsyncStorage.removeItem(AFFILIATE_INVITE_STORAGE_KEY);
       setPendingAffiliateInvite(null);
+      setFailedAffiliateInvite(null);
       setAffiliateReferralError("");
       Alert.alert("Indicação registrada", "O convite foi vinculado à sua conta no pilar selecionado.");
       void affiliateReferralsQuery.refetch();
     }).catch((error) => {
       setAffiliateReferralError(error instanceof Error ? error.message : "Não foi possível registrar o convite. Você pode informar o código manualmente.");
+      setFailedAffiliateInvite(pendingAffiliateInvite);
       void AsyncStorage.removeItem(AFFILIATE_INVITE_STORAGE_KEY);
       setPendingAffiliateInvite(null);
     }).finally(() => { affiliateInviteInFlight.current = false; });
@@ -775,7 +782,7 @@ export default function HomeScreen() {
     try { await Share.share({ message: `Conheça a Max Apiahy. Use meu convite para o pilar ${pillar}: ${url}`, url }); } catch { Alert.alert("Convite", url); }
   };
 
-  const content = tab === "home" ? <HomeView onNavigate={setTab} onSos={openSos} onAi={() => setAiVisible(true)} /> : tab === "carteira" ? <WalletView onQr={() => setQrVisible(true)} /> : tab === "afiliado" ? <AffiliateView onPix={() => setPixVisible(true)} onShareInvite={() => void shareAffiliateInvite()} isAuthenticated={isAuthenticated} affiliate={affiliateQuery.data} loading={isAuthenticated && affiliateQuery.isLoading} registering={affiliateRegisterMutation.isPending} error={affiliateError} referralSending={affiliateReferralMutation.isPending} referralError={affiliateReferralError} onReferral={(referralCode, pillar) => { setAffiliateReferralError(""); affiliateReferralMutation.mutate({ referralCode, pillar }, { onSuccess: () => { setAffiliateReferralError(""); Alert.alert("Indicação registrada", "O código foi vinculado à sua conta para o pilar selecionado."); void affiliateReferralsQuery.refetch(); }, onError: (error) => setAffiliateReferralError(error.message || "Não foi possível registrar a indicação.") }); }} referrals={affiliateReferralsQuery.data ?? []} commissions={affiliateCommissionsQuery.data ?? []} historyLoading={affiliateReferralsQuery.isLoading || affiliateCommissionsQuery.isLoading} onRegister={(pillars) => { setAffiliateError(""); affiliateRegisterMutation.mutate({ pillars }, { onSuccess: () => { void affiliateQuery.refetch(); }, onError: (error) => setAffiliateError(error.message || "Não foi possível concluir o cadastro.") }); }} /> : tab === "clube" ? <ClubView onCoupon={setCoupon} /> : tab === "pins" ? <PinsView /> : <TelemedicineView onBack={() => setTab("home")} />;
+  const content = tab === "home" ? <HomeView onNavigate={setTab} onSos={openSos} onAi={() => setAiVisible(true)} /> : tab === "carteira" ? <WalletView onQr={() => setQrVisible(true)} /> : tab === "afiliado" ? <AffiliateView onPix={() => setPixVisible(true)} onShareInvite={() => void shareAffiliateInvite()} initialReferralCode={failedAffiliateInvite?.referralCode} initialReferralPillar={failedAffiliateInvite?.pillar} isAuthenticated={isAuthenticated} affiliate={affiliateQuery.data} loading={isAuthenticated && affiliateQuery.isLoading} registering={affiliateRegisterMutation.isPending} error={affiliateError} referralSending={affiliateReferralMutation.isPending} referralError={affiliateReferralError} onReferral={(referralCode, pillar) => { setAffiliateReferralError(""); affiliateReferralMutation.mutate({ referralCode, pillar }, { onSuccess: () => { setAffiliateReferralError(""); setFailedAffiliateInvite(null); void AsyncStorage.removeItem(AFFILIATE_INVITE_STORAGE_KEY); Alert.alert("Indicação registrada", "O código foi vinculado à sua conta para o pilar selecionado."); void affiliateReferralsQuery.refetch(); }, onError: (error) => setAffiliateReferralError(error.message || "Não foi possível registrar a indicação.") }); }} referrals={affiliateReferralsQuery.data ?? []} commissions={affiliateCommissionsQuery.data ?? []} historyLoading={affiliateReferralsQuery.isLoading || affiliateCommissionsQuery.isLoading} onRegister={(pillars) => { setAffiliateError(""); affiliateRegisterMutation.mutate({ pillars }, { onSuccess: () => { void affiliateQuery.refetch(); }, onError: (error) => setAffiliateError(error.message || "Não foi possível concluir o cadastro.") }); }} /> : tab === "clube" ? <ClubView onCoupon={setCoupon} /> : tab === "pins" ? <PinsView /> : <TelemedicineView onBack={() => setTab("home")} />;
 
   return (
     <ScreenContainer edges={["top", "left", "right", "bottom"]} containerClassName="bg-background" safeAreaClassName="bg-background">
