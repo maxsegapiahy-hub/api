@@ -11,6 +11,7 @@ import {
   Alert,
   FlatList,
   Linking,
+  Share,
   Modal,
   Platform,
   Pressable,
@@ -54,6 +55,21 @@ const CENTRAL_STATUS_COPY = {
   canceled: { title: "Alerta cancelado", body: "A Central Max encerrou a pronta resposta com segurança.", icon: "cancel" as const },
 };
 const PROFILE_STORAGE_KEY = "max-seg.user-profile.v1";
+const AFFILIATE_INVITE_STORAGE_KEY = "max-seg.affiliate-invite.v1";
+type AffiliatePillar = "maxseg" | "max_saude" | "max_beneficios";
+type AffiliateInvite = { referralCode: string; pillar: AffiliatePillar };
+
+function parseAffiliateInvite(url: string): AffiliateInvite | null {
+  try {
+    const parsed = new URL(url);
+    const referralCode = (parsed.searchParams.get("ref") ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 24);
+    const pillar = parsed.searchParams.get("pillar");
+    if (referralCode.length < 4 || !["maxseg", "max_saude", "max_beneficios"].includes(pillar ?? "")) return null;
+    return { referralCode, pillar: pillar as AffiliatePillar };
+  } catch {
+    return null;
+  }
+}
 
 type Merchant = {
   id: string;
@@ -480,10 +496,60 @@ export default function HomeScreen() {
   const affiliateCommissionsQuery = trpc.affiliates.commissions.useQuery(undefined, { enabled: isAuthenticated && !!affiliateQuery.data, retry: false });
   const affiliateRegisterMutation = trpc.affiliates.register.useMutation();
   const affiliateReferralMutation = trpc.affiliates.referral.useMutation();
+  const [pendingAffiliateInvite, setPendingAffiliateInvite] = useState<AffiliateInvite | null>(null);
+  const [affiliateInviteReady, setAffiliateInviteReady] = useState(false);
+  const affiliateInviteInFlight = useRef(false);
   const [affiliateError, setAffiliateError] = useState("");
   const [affiliateReferralError, setAffiliateReferralError] = useState("");
   const profileQuery = trpc.profile.get.useQuery(undefined, { enabled: isAuthenticated, retry: false });
   const { mutateAsync: registerPushAsync } = trpc.push.register.useMutation();
+
+  useEffect(() => {
+    let active = true;
+    const captureInvite = async (url: string | null) => {
+      const invite = url ? parseAffiliateInvite(url) : null;
+      if (invite) {
+        await AsyncStorage.setItem(AFFILIATE_INVITE_STORAGE_KEY, JSON.stringify(invite));
+        if (active) setPendingAffiliateInvite(invite);
+      }
+    };
+    const initialUrl = Platform.OS === "web" && typeof window !== "undefined" ? window.location.href : null;
+    void (async () => {
+      try {
+        await captureInvite(initialUrl ?? (await Linking.getInitialURL()));
+        const stored = await AsyncStorage.getItem(AFFILIATE_INVITE_STORAGE_KEY);
+        if (active && stored) {
+          try { setPendingAffiliateInvite(JSON.parse(stored) as AffiliateInvite); } catch { await AsyncStorage.removeItem(AFFILIATE_INVITE_STORAGE_KEY); }
+        }
+      } finally {
+        if (active) setAffiliateInviteReady(true);
+      }
+    })();
+    const subscription = Linking.addEventListener("url", ({ url }) => { void captureInvite(url); });
+    return () => { active = false; subscription.remove(); };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !affiliateInviteReady) {
+      if (!isAuthenticated) affiliateInviteInFlight.current = false;
+      return;
+    }
+    if (!pendingAffiliateInvite || affiliateInviteInFlight.current) return;
+    affiliateInviteInFlight.current = true;
+    setTab("afiliado");
+    setAffiliateReferralError("");
+    void affiliateReferralMutation.mutateAsync(pendingAffiliateInvite).then(async () => {
+      await AsyncStorage.removeItem(AFFILIATE_INVITE_STORAGE_KEY);
+      setPendingAffiliateInvite(null);
+      setAffiliateReferralError("");
+      Alert.alert("Indicação registrada", "O convite foi vinculado à sua conta no pilar selecionado.");
+      void affiliateReferralsQuery.refetch();
+    }).catch((error) => {
+      setAffiliateReferralError(error instanceof Error ? error.message : "Não foi possível registrar o convite. Você pode informar o código manualmente.");
+      void AsyncStorage.removeItem(AFFILIATE_INVITE_STORAGE_KEY);
+      setPendingAffiliateInvite(null);
+    }).finally(() => { affiliateInviteInFlight.current = false; });
+  }, [isAuthenticated, affiliateInviteReady, pendingAffiliateInvite, affiliateReferralMutation, affiliateReferralsQuery]);
 
   useEffect(() => {
     if (!isAuthenticated || Platform.OS === "web") return;
