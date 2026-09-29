@@ -190,7 +190,21 @@ export async function createAffiliateReferral(referredUserId: number, referralCo
     return { status: "registered" as const, pillar };
   }
 
-  await db.insert(affiliateReferrals).values({ affiliateId: affiliate.id, referredUserId, pillar, status: "registered" });
+  try {
+    await db.insert(affiliateReferrals).values({ affiliateId: affiliate.id, referredUserId, pillar, status: "registered" });
+  } catch (error) {
+    // Duas requisições simultâneas podem passar pela consulta acima; a chave única do banco é a proteção final.
+    const raced = await db.select().from(affiliateReferrals)
+      .where(and(eq(affiliateReferrals.referredUserId, referredUserId), eq(affiliateReferrals.pillar, pillar)))
+      .limit(1);
+    if (raced[0]?.affiliateId === affiliate.id) {
+      return { status: "registered" as const, pillar };
+    }
+    if (raced[0]) {
+      throw new Error("Já existe uma indicação registrada para sua conta neste pilar");
+    }
+    throw error;
+  }
   return { status: "registered" as const, pillar };
 }
 
