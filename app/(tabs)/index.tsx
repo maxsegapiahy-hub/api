@@ -524,6 +524,12 @@ export default function HomeScreen() {
       const invite = url ? parseAffiliateInvite(url) : null;
       if (invite) {
         await AsyncStorage.setItem(AFFILIATE_INVITE_STORAGE_KEY, JSON.stringify(invite));
+        if (Platform.OS === "web" && typeof window !== "undefined") {
+          const current = new URL(window.location.href);
+          current.searchParams.delete("ref");
+          current.searchParams.delete("pillar");
+          window.history.replaceState(window.history.state, "", `${current.pathname}${current.search}${current.hash}`);
+        }
         if (active) setPendingAffiliateInvite(invite);
       }
     };
