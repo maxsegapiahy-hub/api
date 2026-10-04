@@ -1,0 +1,19 @@
+---
+description: Regras do projeto Max Seg & Max Saúde
+alwaysApply: true
+---
+
+# Max Seg & Max Saúde
+
+- Branch base deste ciclo: feature/affiliate-single-registration.
+- Preserve o módulo de afiliados e as funcionalidades existentes.
+- Não substitua o projeto atual por versões antigas de ZIP.
+- Para mudanças relevantes, trabalhe em branch própria e entregue Pull Request.
+- Não faça merge automático.
+- Nunca versionar segredos, tokens, chaves ou credenciais.
+- Antes de alterações de build, leia package.json, app.config.ts e eas.json.
+- EXPO_PROJECT_ID é fornecido em runtime; não inventar um UUID.
+- Não declarar EAS build concluída sem execução real.
+- Mantenha package.json e app.config.ts com a mesma versão.
+- Faça validações/tests compatíveis com a mudança.
+- Responda em português quando o contexto do projeto estiver em português.
