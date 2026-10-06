@@ -17,8 +17,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "qr": "node scripts/generate_qr.mjs",
-    "preflight:production": "node scripts/preflight-production.mjs",
     "validate:eas": "node scripts/validate-eas-config.mjs",
+    "validate:runtime-env": "node scripts/validate-runtime-env.mjs",
+    "preflight:production": "node scripts/preflight-production.mjs",
     "prepare:android": "node scripts/prepare-android-build.mjs",
     "build:gate": "node scripts/build-gate.mjs"
   },
