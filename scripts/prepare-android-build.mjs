@@ -1,53 +1,27 @@
-import fs from "node:fs";
-import path from "node:path";
+import fs from 'node:fs';
+import path from 'node:path';
 
 const root = process.cwd();
-const envPath = path.join(root, ".env.production");
-const outDir = path.join(root, "build-artifacts");
-const metadataPath = path.join(outDir, "android-production-preflight.json");
+const androidHome = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
+const javaHome = process.env.JAVA_HOME;
 
-function loadEnv(file) {
-  const out = {};
-  if (!fs.existsSync(file)) return out;
-  for (const line of fs.readFileSync(file, "utf8").split(/\\r?\\n/)) {
-    const m = line.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
-    if (!m) continue;
-    out[m[1]] = m[2].trim().replace(/^(['"])(.*)\\1$/, "$2");
+const checks = [
+  { label: 'Android SDK', ok: !!androidHome && fs.existsSync(String(androidHome)) },
+  { label: 'JDK', ok: !!javaHome && fs.existsSync(String(javaHome)) },
+  { label: 'eas.json', ok: fs.existsSync(path.join(root, 'eas.json')) },
+  { label: 'app.config.ts', ok: fs.existsSync(path.join(root, 'app.config.ts')) },
+];
+
+const failed = checks.filter((entry) => !entry.ok);
+
+if (failed.length > 0) {
+  console.error('Android local preparation checks failed:');
+  for (const entry of failed) {
+    console.error(` - ${entry.label}`);
   }
-  return out;
-}
-
-const env = { ...loadEnv(envPath), ...process.env };
-const required = ["EXPO_PROJECT_ID", "EXPO_PUBLIC_API_URL", "MAXSEG_PUBLIC_BASE_URL"];
-const missing = required.filter(key => {
-  const value = String(env[key] || "").trim();
-  return !value || value.includes("SEU_") || value.includes("seu-dominio");
-});
-
-if (missing.length) {
-  console.error("ANDROID BUILD PREPARATION: BLOCKED");
-  console.error(`Configure antes: ${missing.join(", ")}`);
-  process.exit(1);
-}
-if (!/^https:\\/\\//i.test(env.EXPO_PUBLIC_API_URL) || !/^https:\\/\\//i.test(env.MAXSEG_PUBLIC_BASE_URL)) {
-  console.error("ANDROID BUILD PREPARATION: BLOCKED");
-  console.error("As URLs de produção precisam usar HTTPS.");
+  console.error('\nInstall Android SDK / JDK locally or configure ANDROID_HOME and JAVA_HOME before building.');
   process.exit(1);
 }
 
-const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-fs.mkdirSync(outDir, { recursive: true });
-const metadata = {
-  version: pkg.version,
-  platform: "android",
-  profile: "production",
-  distribution: "store",
-  buildType: "app-bundle",
-  preparedAt: new Date().toISOString(),
-  projectIdConfigured: true,
-  apiUrlConfigured: true,
-  publicUrlConfigured: true,
-  note: "Preflight local concluído. A build EAS real ainda exige login no Expo/EAS e execução do comando eas build."
-};
-fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + "\n");
-console.log(`ANDROID BUILD PREPARATION: PASS\\nMetadata: ${path.relative(root, metadataPath)}`);
+console.log('Android local preparation checks passed.');
+console.log('ANDROID_HOME/JAVA_HOME are configured and required files exist.');
