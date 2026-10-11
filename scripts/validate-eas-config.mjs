@@ -12,12 +12,12 @@ for (const [label, file] of [
   ['eas.json', easPath],
   ['app.config.ts', appConfigPath],
 ]) {
-  if (!fs.existsSync(file)) errors.push(\`Arquivo obrigatório ausente: \${label}\`);
+  if (!fs.existsSync(file)) errors.push(`Arquivo obrigatório ausente: ${label}`);
 }
 
 if (errors.length) {
   console.error('EAS CONFIG VALIDATION: FAIL');
-  for (const error of errors) console.error(\` - \${error}\`);
+  for (const error of errors) console.error(` - ${error}`);
   process.exit(1);
 }
 
@@ -49,13 +49,13 @@ if (!rawBundleId || !/^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*)+$/.test(rawB
   errors.push('app.config.ts: rawBundleId ausente ou inválido');
 }
 
-console.log(\`MaxSeg EAS config validation — versão \${pkg.version}\`);
-console.log(\`Project ID via ambiente: \${String(process.env.EXPO_PROJECT_ID || '').trim() ? 'configurado no terminal' : 'ainda não configurado (necessário para build)'}\`);
+console.log(`MaxSeg EAS config validation — versão ${pkg.version}`);
+console.log(`Project ID via ambiente: ${String(process.env.EXPO_PROJECT_ID || '').trim() ? 'configurado no terminal' : 'ainda não configurado (necessário para build)'}`);
 console.log('Esta verificação não lê nem exige segredos do arquivo .env.');
 
 if (errors.length) {
   console.error('\nFalhas:');
-  for (const error of errors) console.error(\` - \${error}\`);
+  for (const error of errors) console.error(` - ${error}`);
   process.exit(1);
 }
 
