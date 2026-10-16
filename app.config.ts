@@ -8,7 +8,7 @@ const scheme = `manus${bundleId.split(".").pop()?.replace(/^t/, "") ?? ""}`;
 const config: ExpoConfig = {
   name: "Max Seg & Max Saúde — Apiahy",
   slug: "max-seg-apiahy",
-  version: "2.4.17",
+  version: "2.4.18",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme,
