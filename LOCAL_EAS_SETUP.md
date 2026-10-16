@@ -34,36 +34,29 @@ Se não tem conta Expo, criar em: https://expo.dev
 
 ## 2. Configurar EXPO_PROJECT_ID Localmente
 
-### 2.1 Opção A: Inicializar novo projeto no Expo (primeira vez)
-```bash
-eas init
+### 2.1 Importante: o projeto Expo já existe?
+Se o projeto **Max Seg Apiahy** já aparece no painel da Expo, não execute `eas init` sem antes confirmar o ID dele. Inicializar sem o ID pode criar ou vincular o projeto errado.
+
+O `EXPO_PROJECT_ID` identifica o projeto EAS e deve ser o mesmo para todos os computadores que trabalham nesse projeto. Ele não é o identificador do pacote Android.
+
+### 2.2 Vincular um projeto existente (somente depois de encontrar o ID)
+Depois de copiar o Project ID verdadeiro no painel da Expo, execute na pasta do projeto:
+```bat
+eas init --id COLE_AQUI_O_PROJECT_ID --non-interactive
 ```
 
-O CLI vai:
-1. Perguntar se quer criar um novo projeto ou usar um existente
-2. Gerar um **único `EXPO_PROJECT_ID`** para este app
-3. Associar o projeto ao seu account Expo
-4. **NÃO vai modificar `.env`** (apenas cria `.easrc`)
-
-### 2.2 Opção B: Usar projeto existente
-Se já tem um projeto Expo criado:
-```bash
-eas project:configure
-```
-
-Vai solicitar o `projectId` manualmente.
+Substitua `COLE_AQUI_O_PROJECT_ID` pelo ID real. Não execute esse comando com texto de exemplo.
 
 ### 2.3 Copiar o projectId para `.env` LOCAL (NÃO fazer commit)
 
-Após `eas init` ou `eas project:configure`, você terá um `projectId` como:
-```
-abc12345-def6-7890-ghij-klmnopqrstuv
-```
+Use somente o Project ID real copiado do painel da Expo ou retornado ao vincular o projeto existente. Não use IDs de exemplo.
 
 **Edite o arquivo `.env` APENAS no seu computador:**
 ```env
-EXPO_PROJECT_ID=abc12345-def6-7890-ghij-klmnopqrstuv
+EXPO_PROJECT_ID=COLE_AQUI_O_ID_REAL
 ```
+
+Troque o texto de exemplo pelo valor real antes de salvar. Nunca comite esse arquivo.
 
 **Salve o arquivo. NÃO faça commit.**
 
