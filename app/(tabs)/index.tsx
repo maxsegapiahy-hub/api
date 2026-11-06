@@ -25,6 +25,7 @@ import {
 import { ScreenContainer } from "@/components/screen-container";
 import { CENTRAL_MAX_PROFILE, filterByCategory, formatSosCoordinates, getMaxAiReply, getSosPriority, getSosRetryDelayMs, SOS_MAX_ATTEMPTS, type EmergencyContact, type EmergencyType, type UserProfileInput, validateEmergencyContact, validateUserProfile } from "@/shared/max-seg";
 import { trpc } from "@/lib/trpc";
+import { startOAuthLogin } from "@/constants/oauth";
 import { useAuth } from "@/hooks/use-auth";
 
 const C = {
@@ -818,6 +819,7 @@ export default function HomeScreen() {
           <View style={styles.profileModal}>
             <View style={styles.profileAvatar}><MaterialIcons name="person" size={28} color={C.gold} /></View>
             <Text style={styles.profileIntro}>{profile ? "Atualize seus dados para manter seu atendimento Max completo." : "Cadastre seus dados para agilizar o atendimento da Central Max."}</Text>
+            {!isAuthenticated ? <Pressable onPress={() => { void startOAuthLogin().catch((error) => Alert.alert("Não foi possível iniciar o acesso", error instanceof Error ? error.message : "Tente novamente.")); }} style={({ pressed }) => [styles.primaryButton, { marginBottom: 12 }, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Entrar com conta Max"><MaterialIcons name="login" size={18} color={C.bg} /><Text style={styles.darkButtonText}>Entrar com conta Max</Text></Pressable> : null}
             {!isAuthenticated ? <View style={styles.profileSyncError}><MaterialIcons name="lock" size={16} color={C.red} /><Text style={styles.profileSyncErrorText}>Conta Max não autenticada: o perfil será salvo localmente, mas não será sincronizado.</Text></View> : null}
             {isAuthenticated && pushStatus === "registered" ? <View style={styles.profileSync}><MaterialIcons name="notifications-active" size={16} color={C.success} /><Text style={styles.profileSyncText}>Notificações push ativas neste aparelho.</Text></View> : null}
             {isAuthenticated && pushStatus === "unavailable" ? <View style={styles.profileSync}><MaterialIcons name="notifications-off" size={16} color={C.gold} /><Text style={styles.profileSyncText}>Push pendente: configure o EXPO_PROJECT_ID em uma build nativa.</Text></View> : null}
