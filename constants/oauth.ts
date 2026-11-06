@@ -79,16 +79,32 @@ export const getRedirectUri = () => {
 };
 
 export const getLoginUrl = () => {
+  if (!OAUTH_PORTAL_URL) {
+    throw new Error("O endereço do portal de autenticação não foi configurado. Verifique EXPO_PUBLIC_OAUTH_PORTAL_URL no ambiente de build do EAS.");
+  }
+  if (!APP_ID) {
+    throw new Error("O identificador do aplicativo não foi configurado. Verifique EXPO_PUBLIC_APP_ID no ambiente de build do EAS.");
+  }
+
+  let portalUrl: URL;
+  try {
+    portalUrl = new URL(OAUTH_PORTAL_URL);
+  } catch {
+    throw new Error("O endereço do portal de autenticação é inválido.");
+  }
+  if (portalUrl.protocol !== "https:" && portalUrl.hostname !== "localhost") {
+    throw new Error("O portal de autenticação deve utilizar HTTPS.");
+  }
+
   const redirectUri = getRedirectUri();
   const state = encodeState(redirectUri);
-
-  const url = new URL(`${OAUTH_PORTAL_URL}/app-auth`);
-  url.searchParams.set("appId", APP_ID);
-  url.searchParams.set("redirectUri", redirectUri);
-  url.searchParams.set("state", state);
-  url.searchParams.set("type", "signIn");
-
-  return url.toString();
+  portalUrl.pathname = `${portalUrl.pathname.replace(/\\/$/, "")}/app-auth`;
+  portalUrl.search = "";
+  portalUrl.searchParams.set("appId", APP_ID);
+  portalUrl.searchParams.set("redirectUri", redirectUri);
+  portalUrl.searchParams.set("state", state);
+  portalUrl.searchParams.set("type", "signIn");
+  return portalUrl.toString();
 };
 
 /**
@@ -112,18 +128,13 @@ export async function startOAuthLogin(): Promise<string | null> {
     return null;
   }
 
-  const supported = await Linking.canOpenURL(loginUrl);
-  if (!supported) {
-    console.warn("[OAuth] Cannot open login URL: URL scheme not supported");
-    // 可考虑抛出错误或返回错误状态，让调用方处理
-    return null;
-  }
-
+  // Open HTTPS in the system browser directly. Android can report false from
+  // canOpenURL because of package visibility restrictions, even for valid URLs.
   try {
     await Linking.openURL(loginUrl);
   } catch (error) {
     console.error("[OAuth] Failed to open login URL:", error);
-    // 可考虑抛出错误让调用方处理
+    throw new Error("Não foi possível abrir o portal de autenticação. Verifique a conexão e tente novamente.");
   }
 
   // The OAuth callback will reopen the app via deep link.
