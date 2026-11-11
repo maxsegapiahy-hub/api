@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Perfil do associado Max Seg com dados cadastrais e plano VIP",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID do usuário no Firebase Auth" },
+        "fullName": { "type": "string", "description": "Nome completo do titular" },
+        "email": { "type": "string", "format": "email", "description": "E-mail cadastrado" },
+        "documentCpf": { "type": "string", "description": "CPF ou documento do titular" },
+        "phone": { "type": "string", "description": "Telefone celular com DDD" },
+        "planId": { "type": "string", "description": "Identificador do plano contratado" },
+        "tier": { "type": "string", "description": "Categoria do Cartão VIP (Ex: TITANIUM, BLACK, PADRAO)" },
+        "cardCode": { "type": "string", "description": "Código do cartão virtual do associado" },
+        "status": { "type": "string", "description": "Status da assinatura (Ex: ATIVO, PENDENTE)" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Data de criação no servidor" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Data de atualização no servidor" }
+      },
+      "required": ["userId", "fullName", "email", "phone"]
+    },
+    "EmergencyContact": {
+      "title": "EmergencyContact",
+      "description": "Contato de emergência vinculado ao associado para acionamentos SOS",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identificador único do contato" },
+        "userId": { "type": "string", "description": "UID do associado responsável" },
+        "name": { "type": "string", "description": "Nome do contato de emergência" },
+        "relationship": { "type": "string", "description": "Grau de parentesco ou vínculo" },
+        "phone": { "type": "string", "description": "Telefone de contato para socorro" },
+        "isPrimary": { "type": "boolean", "description": "Indica se é o contato preferencial" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Data de cadastro" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Data de última modificação" }
+      },
+      "required": ["userId", "name", "phone"]
+    },
+    "SosAlert": {
+      "title": "SosAlert",
+      "description": "Registro de acionamento do Botão SOS com localização GPS e despacho da Central Max",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identificador do alerta de emergência" },
+        "userId": { "type": "string", "description": "UID do associado que acionou o SOS" },
+        "latitude": { "type": "number", "description": "Latitude GPS no momento do acionamento" },
+        "longitude": { "type": "number", "description": "Longitude GPS no momento do acionamento" },
+        "address": { "type": "string", "description": "Endereço ou referência em Apiaí-SP" },
+        "status": { "type": "string", "description": "Status do atendimento (DISPATCHED, IN_ROUTE, RESOLVED, CANCELLED)" },
+        "dispatchedUnit": { "type": "string", "description": "Prefixo da viatura Max Seg despachada" },
+        "estimatedMinutes": { "type": "integer", "description": "Tempo estimado de chegada da equipe APH" },
+        "notes": { "type": "string", "description": "Observações do acionamento" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Horário do acionamento" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Horário de atualização de status" }
+      },
+      "required": ["userId", "latitude", "longitude", "status"]
+    },
+    "PartnerBusiness": {
+      "title": "PartnerBusiness",
+      "description": "Estabelecimento comercial parceiro do Clube de Benefícios Max Seg em Apiaí",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Identificador do parceiro comercial" },
+        "businessName": { "type": "string", "description": "Nome fantasia da empresa parceira" },
+        "segment": { "type": "string", "description": "Ramo de atividade comercial (Farmácia, Mercado, etc.)" },
+        "benefitDiscount": { "type": "string", "description": "Desconto ou benefício exclusivo para associados" },
+        "contactPerson": { "type": "string", "description": "Nome do contato ou gerente" },
+        "phone": { "type": "string", "description": "Telefone ou WhatsApp com DDD" },
+        "address": { "type": "string", "description": "Endereço completo em Apiaí-SP" },
+        "neighborhood": { "type": "string", "description": "Bairro em Apiaí-SP" },
+        "status": { "type": "string", "description": "Status da parceria (ATIVO, CONFIRMADO, PROSPECCAO)" },
+        "argumentPitch": { "type": "string", "description": "Observações comerciais ou pitch de apresentação" },
+        "lat": { "type": "number", "description": "Latitude geográfica em Apiaí" },
+        "lng": { "type": "number", "description": "Longitude geográfica em Apiaí" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Data de cadastro no Firestore" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Data da última alteração" }
+      },
+      "required": ["businessName", "segment", "benefitDiscount", "phone", "address"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Perfil completo do associado e status cadastral"
+    },
+    "/users/{userId}/emergencyContacts/{contactId}": {
+      "schema": { "$ref": "#/entities/EmergencyContact" },
+      "description": "Contatos de emergência para alertas da Central"
+    },
+    "/users/{userId}/sosAlerts/{alertId}": {
+      "schema": { "$ref": "#/entities/SosAlert" },
+      "description": "Histórico de chamados de socorro SOS com coordenadas GPS"
+    },
+    "/partners/{partnerId}": {
+      "schema": { "$ref": "#/entities/PartnerBusiness" },
+      "description": "Rede de estabelecimentos parceiros e descontos do Clube Max Seg em Apiaí"
+    }
+  }
+}

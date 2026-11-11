@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidTimestamp(val) {
+      return val is timestamp && val <= request.time;
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId is string &&
+             data.userId == request.auth.uid &&
+             data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 100 &&
+             data.email is string && data.email.size() >= 5 &&
+             data.phone is string && data.phone.size() >= 8 &&
+             (!('documentCpf' in data) || data.documentCpf is string) &&
+             (!('planId' in data) || data.planId is string) &&
+             (!('tier' in data) || data.tier is string) &&
+             (!('cardCode' in data) || data.cardCode is string) &&
+             (!('status' in data) || data.status is string) &&
+             (!('createdAt' in data) || isValidTimestamp(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidEmergencyContact(data) {
+      return data.userId is string &&
+             data.userId == request.auth.uid &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
+             data.phone is string && data.phone.size() >= 8 &&
+             (!('relationship' in data) || data.relationship is string) &&
+             (!('isPrimary' in data) || data.isPrimary is bool) &&
+             (!('createdAt' in data) || isValidTimestamp(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidSosAlert(data) {
+      return data.userId is string &&
+             data.userId == request.auth.uid &&
+             data.latitude is number &&
+             data.longitude is number &&
+             data.status is string &&
+             (!('address' in data) || data.address is string) &&
+             (!('dispatchedUnit' in data) || data.dispatchedUnit is string) &&
+             (!('estimatedMinutes' in data) || data.estimatedMinutes is int) &&
+             (!('notes' in data) || data.notes is string) &&
+             (!('createdAt' in data) || isValidTimestamp(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestamp(data.updatedAt));
+    }
+
+    function isValidPartner(data) {
+      return data.businessName is string && data.businessName.size() >= 2 && data.businessName.size() <= 150 &&
+             data.segment is string && data.segment.size() >= 2 &&
+             data.benefitDiscount is string && data.benefitDiscount.size() >= 2 &&
+             data.phone is string && data.phone.size() >= 8 &&
+             data.address is string && data.address.size() >= 3 &&
+             (!('contactPerson' in data) || data.contactPerson is string) &&
+             (!('neighborhood' in data) || data.neighborhood is string) &&
+             (!('status' in data) || data.status is string) &&
+             (!('argumentPitch' in data) || data.argumentPitch is string) &&
+             (!('lat' in data) || data.lat is number) &&
+             (!('lng' in data) || data.lng is number) &&
+             (!('createdAt' in data) || isValidTimestamp(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidTimestamp(data.updatedAt));
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      allow update: if isOwner(userId) && isValidUserProfile(request.resource.data);
+      allow delete: if isOwner(userId);
+
+      match /emergencyContacts/{contactId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidEmergencyContact(request.resource.data);
+        allow update: if isOwner(userId) && isValidEmergencyContact(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /sosAlerts/{alertId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidSosAlert(request.resource.data);
+        allow update: if isOwner(userId) && isValidSosAlert(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    match /partners/{partnerId} {
+      // Leitura aberta para todos os associados e visitantes de Apiaí
+      allow read: if true;
+      // Criação, atualização e exclusão restritas a usuários autenticados da Max Seg
+      allow create: if isAuthenticated() && isValidPartner(request.resource.data);
+      allow update: if isAuthenticated() && isValidPartner(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+  }
+}

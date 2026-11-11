@@ -1,0 +1,6 @@
+{
+  "name": "Max Seg Apiahy",
+  "description": "Clube de Afiliados Max Seg Apiahy: Cartão de Membro Virtual, Bottons e Graduações da Carreira, Planos de Segurança e Saúde SOS, e Rede de Parceiros Locais.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
